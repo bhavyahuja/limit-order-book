@@ -51,6 +51,7 @@ void OrderBook::erase_level_if_empty(Side side, int64_t price) {
 }
 
 void OrderBook::link_tail(PriceLevel& level, Order* order) {
+    // Append to FIFO queue: new orders sit behind earlier orders at this price.
     order->prev = level.tail;
     order->next = nullptr;
     if (level.tail != nullptr) {
@@ -63,6 +64,7 @@ void OrderBook::link_tail(PriceLevel& level, Order* order) {
 }
 
 void OrderBook::unlink(PriceLevel& level, Order* order) {
+    // O(1) removal from the intrusive list using prev/next pointers.
     if (order->prev != nullptr) {
         order->prev->next = order->next;
     } else {
@@ -163,8 +165,8 @@ bool OrderBook::add_limit(const OrderSpec& spec, std::vector<Fill>* fills) {
     int64_t remaining = spec.qty;
 
     if (spec.side == Side::Bid) {
-        // Buy walks asks from best (lowest) while ask <= limit.
-        // Re-read begin() each iteration — reduce_order may erase the level.
+        // Buy: consume asks from best (lowest) while ask_price <= limit.
+        // Re-read begin() each step — reduce_order may erase the level node.
         while (remaining > 0 && !asks_.empty()) {
             auto level_it = asks_.begin();
             if (level_it->second.price > spec.price) {
@@ -183,7 +185,7 @@ bool OrderBook::add_limit(const OrderSpec& spec, std::vector<Fill>* fills) {
             reduce_order(resting, traded);
         }
     } else {
-        // Sell walks bids from best (highest) while bid >= limit.
+        // Sell: consume bids from best (highest) while bid_price >= limit.
         while (remaining > 0 && !bids_.empty()) {
             auto level_it = bids_.begin();
             if (level_it->second.price < spec.price) {

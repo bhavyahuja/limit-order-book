@@ -101,9 +101,9 @@ def main() -> None:
     if msg and ob:
         print(
             f"  python3 python/lobster_orderbook_to_snapshots.py --orderbook {ob} "
-            f"--messages {msg} --output data/snapshots_real.csv --levels 5 --every-n 100"
+            f"--messages {msg} --output data/snapshots_real.csv --levels 5 --every-n 10"
         )
-        print("  # Point notebooks/obi_study.ipynb at data/snapshots_real.csv")
+        print("  # Open notebooks/obi_study.ipynb (default SNAP_PATH=data/snapshots_real.csv)")
 
 
 if __name__ == "__main__":

@@ -8,7 +8,8 @@
 
 namespace lob {
 
-// Pre-allocated Order arena. Hot path uses allocate/deallocate only — never new/delete.
+// Fixed-capacity arena for Order nodes.
+// allocate/deallocate recycle free_list_ slots — never ::new/::delete on the hot path.
 class MemoryPool {
 public:
     explicit MemoryPool(std::size_t capacity) : slots_(capacity) {

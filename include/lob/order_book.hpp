@@ -14,30 +14,35 @@
 namespace lob {
 
 // Single-threaded limit order book.
-// - Bids: std::map with greater<> so begin() is best (highest) bid
-// - Asks: std::map with less<> so begin() is best (lowest) ask
-// - Cancel is O(1) via unordered_map<id, Order*>
-// - Within a price: intrusive doubly-linked list (FIFO / price-time priority)
+//
+// Layout:
+//   - bids_/asks_: ordered price levels (best bid/ask = begin())
+//   - each PriceLevel: intrusive FIFO doubly linked list of Order
+//   - id_map_: order_id -> Order* for O(1) cancel / lookup
+//   - pool_: pre-allocated Order storage
+//
+// Complexity (typical):
+//   rest at a price: O(log n_levels) map + O(1) list append
+//   cancel by id: O(1) hash + O(1) unlink (+ O(log n) if level erased)
+//   match: O(k) for k resting orders filled
 class OrderBook {
 public:
     explicit OrderBook(std::size_t pool_capacity = 1'000'000);
 
-    // Mode A (replay): rest without matching
+    // Rest without matching (used after a partial aggressive match).
     bool rest(const OrderSpec& spec);
 
-    // Mode A: reduce or remove resting order by id
+    // Full or partial cancel by id. qty nullopt => remove entire resting order.
     bool cancel(uint64_t order_id, std::optional<int64_t> qty = std::nullopt);
 
-    // Mode A: apply an exchange execute against a resting order
+    // Apply an exchange execute message against a resting order (replay mode).
     bool execute(uint64_t order_id, int64_t qty);
 
-    // Mode B (match): match incoming limit, rest any remainder
-    // Fills (if non-null) are appended for the aggressor.
+    // Match incoming limit with price-time priority, then rest any remainder.
     bool add_limit(const OrderSpec& spec, std::vector<Fill>* fills = nullptr);
 
     BestBidAsk top() const;
 
-    // Up to n levels from best on each side (empty slots omitted).
     void depth(std::size_t n, std::vector<DepthLevel>& bids_out,
                std::vector<DepthLevel>& asks_out) const;
 
@@ -45,7 +50,6 @@ public:
     std::size_t order_count() const { return id_map_.size(); }
     std::size_t pool_in_use() const { return pool_.in_use(); }
 
-    // Level volume must equal sum of order qtys (for tests).
     int64_t level_volume(Side side, int64_t price) const;
     int64_t sum_order_qty_at(Side side, int64_t price) const;
 

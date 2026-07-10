@@ -31,7 +31,7 @@ def main() -> None:
     )
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--levels", type=int, default=5, help="Levels to write (1-5)")
-    parser.add_argument("--every-n", type=int, default=100)
+    parser.add_argument("--every-n", type=int, default=10)
     parser.add_argument("--tick-size", type=float, default=0.01)
     args = parser.parse_args()
     levels = max(1, min(5, args.levels))
