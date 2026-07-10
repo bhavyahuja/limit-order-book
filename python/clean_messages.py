@@ -3,6 +3,13 @@
 
 Stdlib only. Output schema:
   timestamp,order_id,side,price_ticks,size,action
+
+LOBSTER message files have NO header. Columns are:
+  time, type, order_id, size, price, direction
+
+Price in official LOBSTER files is an integer = dollars * 10000
+(e.g. 5853300 → $585.33). Use --price-unit lobster for those files.
+Synthetic samples from generate_sample_data.py use dollar floats → --price-unit dollar.
 """
 
 from __future__ import annotations
@@ -25,8 +32,27 @@ TYPE_MAP = {
     LOBSTER_EXECUTE_HIDDEN: "EXECUTE",
 }
 
+LOBSTER_COLUMNS = ["time", "type", "order_id", "size", "price", "direction"]
 
-def clean_lobster(rows: list[dict], price_tick_size: float = 0.01) -> list[dict]:
+
+def price_to_ticks(price: float, price_unit: str, tick_size: float) -> int:
+    """Convert LOBSTER/synthetic price field to integer ticks for the engine."""
+    if price_unit == "lobster":
+        # LOBSTER stores dollars * 10000 as int; tick_size default $0.01 → /100
+        dollars = float(price) / 10000.0
+        return int(round(dollars / tick_size))
+    if price_unit == "dollar":
+        return int(round(float(price) / tick_size))
+    if price_unit == "ticks":
+        return int(round(float(price)))
+    raise ValueError(f"Unknown price_unit: {price_unit}")
+
+
+def clean_lobster(
+    rows: list[dict],
+    price_tick_size: float = 0.01,
+    price_unit: str = "dollar",
+) -> list[dict]:
     out: list[dict] = []
     for r in rows:
         try:
@@ -39,15 +65,14 @@ def clean_lobster(rows: list[dict], price_tick_size: float = 0.01) -> list[dict]
             if size <= 0 or order_id <= 0:
                 continue
             direction = int(float(r["direction"]))
-            price = float(r["price"])
-            # LOBSTER time is seconds from midnight as float → ns
+            price_ticks = price_to_ticks(float(r["price"]), price_unit, price_tick_size)
             timestamp = int(round(float(r["time"]) * 1e9))
             out.append(
                 {
                     "timestamp": timestamp,
                     "order_id": order_id,
                     "side": "B" if direction == 1 else "S",
-                    "price_ticks": int(round(price / price_tick_size)),
+                    "price_ticks": price_ticks,
                     "size": size,
                     "action": action,
                 }
@@ -60,7 +85,6 @@ def clean_lobster(rows: list[dict], price_tick_size: float = 0.01) -> list[dict]
 def clean_engine(rows: list[dict]) -> list[dict]:
     out: list[dict] = []
     for r in rows:
-        # allow aliases
         if "price" in r and "price_ticks" not in r:
             r = {**r, "price_ticks": r["price"]}
         if "qty" in r and "size" not in r:
@@ -87,8 +111,19 @@ def clean_engine(rows: list[dict]) -> list[dict]:
     return out
 
 
+def looks_headerless_lobster(first_line: str) -> bool:
+    """True if first line looks like data (time starts with digit), not a header."""
+    if not first_line or "time" in first_line.lower():
+        return False
+    return first_line[0].isdigit()
+
+
 def read_csv(path: Path) -> list[dict]:
-    with path.open(newline="") as f:
+    with path.open(newline="", encoding="utf-8") as f:
+        peek = f.readline()
+        f.seek(0)
+        if looks_headerless_lobster(peek.strip()):
+            return list(csv.DictReader(f, fieldnames=LOBSTER_COLUMNS))
         return list(csv.DictReader(f))
 
 
@@ -107,13 +142,30 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--format", choices=["lobster", "engine"], default="lobster")
     parser.add_argument("--tick-size", type=float, default=0.01)
+    parser.add_argument(
+        "--price-unit",
+        choices=["dollar", "lobster", "ticks"],
+        default="dollar",
+        help="dollar=float dollars (synthetic); lobster=int dollars*10000; ticks=already ticks",
+    )
+    parser.add_argument(
+        "--max-rows",
+        type=int,
+        default=0,
+        help="Optional cap on cleaned events (0 = all). Useful for a first real-data smoke test.",
+    )
     args = parser.parse_args()
 
     raw = read_csv(args.input)
     if args.format == "lobster":
-        clean = clean_lobster(raw, price_tick_size=args.tick_size)
+        clean = clean_lobster(
+            raw, price_tick_size=args.tick_size, price_unit=args.price_unit
+        )
     else:
         clean = clean_engine(raw)
+
+    if args.max_rows > 0:
+        clean = clean[: args.max_rows]
 
     write_csv(args.output, clean)
     print(f"wrote {args.output} ({len(clean)} events)")

@@ -3,6 +3,8 @@ cmake-build-*/
 data/*.csv
 !data/.gitkeep
 !data/samples/
+data/real/
+
 __pycache__/
 *.pyc
 .ipynb_checkpoints/

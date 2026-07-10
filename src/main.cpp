@@ -96,7 +96,9 @@ int main(int argc, char** argv) {
             if (opt.mode == "replay") {
                 switch (e.action) {
                     case lob::Action::Add:
-                        book.rest(lob::OrderSpec{e.order_id, e.side, e.price, e.size});
+                        // Rest, but match if the add would cross (keeps real LOBSTER
+                        // feeds consistent when a marketable limit appears as type-1).
+                        book.add_limit(lob::OrderSpec{e.order_id, e.side, e.price, e.size});
                         break;
                     case lob::Action::Cancel:
                         book.cancel(e.order_id, e.size > 0 ? std::optional<int64_t>{e.size}
