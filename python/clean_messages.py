@@ -95,8 +95,8 @@ def read_csv(path: Path) -> list[dict]:
 def write_csv(path: Path, rows: list[dict]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fields = ["timestamp", "order_id", "side", "price_ticks", "size", "action"]
-    with path.open("w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=fields)
+    with path.open("w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=fields, lineterminator="\n")
         w.writeheader()
         w.writerows(rows)
 
