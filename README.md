@@ -101,11 +101,13 @@ python3 python/clean_messages.py \
 
 ## Analysis
 
-\[
-\mathrm{OBI}_t = \frac{V^{\mathrm{bid}}_t - V^{\mathrm{ask}}_t}{V^{\mathrm{bid}}_t + V^{\mathrm{ask}}_t}
-\]
+Top-of-book order book imbalance:
 
-Forward mid return over horizons \(h \in \{100\mathrm{ms}, 1\mathrm{s}, 5\mathrm{s}\}\), evaluated on a **time-based 70/30 train/test split** (metrics reported on the test segment only).
+```text
+OBI_t = (V_bid_t - V_ask_t) / (V_bid_t + V_ask_t)
+```
+
+Forward mid return is measured at horizons of 100 ms, 1 s, and 5 s. Evaluation uses a **time-based 70/30 train/test split**; metrics below are from the test segment only.
 
 ### Results — AAPL 2012-06-21 (LOBSTER orderbook, every 10th message)
 
@@ -123,13 +125,25 @@ Test-set Pearson correlation, top-of-book OBI vs forward mid return:
 | 1 s | ~0.07 |
 | 5 s | ~0.02 |
 
+<p align="center">
+  <img src="docs/figures/obi_vs_return_scatter.png" alt="Test-set scatter: OBI vs 1s forward mid return" width="420" />
+</p>
+
+<p align="center"><em>Test set: OBI vs 1-second forward mid return (n ≈ 12,000). The cloud is wide — association is weak, as the table shows.</em></p>
+
+<p align="center">
+  <img src="docs/figures/mid_obi_timeseries.png" alt="Mid price and top-of-book OBI over the sample day" width="720" />
+</p>
+
+<p align="center"><em>Session mid (ticks) and OBI. OBI is noisy at this scale; the signal is short-horizon, not a day-long trend overlay.</em></p>
+
 Interpretation: a weak positive association at short horizons that decays within a few seconds. That is consistent with typical equity microstructure; it is not evidence of a profitable strategy (no transaction costs, latency, or queue position).
 
 ```bash
 jupyter notebook notebooks/obi_study.ipynb
 ```
 
-Set `SNAP_PATH` to `data/snapshots_real.csv` (default) or `data/snapshots_replay.csv` for synthetic checks.
+Default input is `data/snapshots_real.csv`. Use `data/snapshots_replay.csv` only for synthetic pipeline checks.
 
 ## Tests and benchmark
 
@@ -148,7 +162,7 @@ Coverage includes FIFO matching, partial fills, mid-list cancel, level-volume in
 timestamp,order_id,side,price_ticks,size,action
 ```
 
-`side` ∈ {`B`,`S`}; `action` ∈ {`ADD`,`CANCEL`,`EXECUTE`}; `timestamp` in nanoseconds.
+`side` in {`B`,`S`}; `action` in {`ADD`,`CANCEL`,`EXECUTE`}; `timestamp` in nanoseconds.
 
 **Snapshots**
 
