@@ -1,5 +1,11 @@
 # Limit Order Book Engine
 
+![Language](https://img.shields.io/badge/language-C%2B%2B20-00599C)
+![Build](https://img.shields.io/badge/build-CMake%20%2F%20Make-brightgreen)
+![Python](https://img.shields.io/badge/python-3.x-blue)
+![Analysis](https://img.shields.io/badge/analysis-Jupyter-F37626)
+![Data](https://img.shields.io/badge/data-LOBSTER-lightgrey)
+
 C++20 limit-order-book with O(1) cancel (pre-allocated memory pool, `order_id` hash map, FIFO price levels). The same core supports:
 
 - **Replay** — reconstruct book state from LOBSTER-style ADD / CANCEL / EXECUTE messages
